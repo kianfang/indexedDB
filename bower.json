@@ -1,0 +1,21 @@
+{
+  "name": "indexeddb",
+  "homepage": "https://github.com/waiwaiku/indexedDB",
+  "authors": [
+    "Kian <kian@vsu.cc>"
+  ],
+  "description": "tools",
+  "main": "",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "^3.1.1"
+  }
+}

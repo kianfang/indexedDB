@@ -338,6 +338,7 @@ var DB = function(name, initialTable) {
             table.addAll = function(arrayData, resultData) {
                 var objectStore = self.db.transaction([tableName], 'readwrite').objectStore(tableName);
                 var total = arrayData.length;
+                /* jshint loopfunc:true */
                 for(var i=0; i<total; i++){
                     objectStore.add(arrayData[i]).onsuccess = function(e) {
                         resultData({
@@ -388,6 +389,7 @@ var DB = function(name, initialTable) {
                         message: 'no data!'
                     });
                 }else{
+                    /* jshint loopfunc:true */
                     for(var i=0; i<total; i++){
                         objectStore.put(arrayData[i]).onsuccess = function(e) {
                             resultData({
