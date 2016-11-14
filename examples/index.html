@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>indexeddb demo</title>
+    <script type="text/javascript" src="../dist/indexeddb.min.js"></script>
+</head>
+<body>
+indexedDB
+
+<script>
+
+var db = new DB("test", {
+    'scan_info': [
+        ['id', 'primary', 'AI'],
+        ['code'],
+        ['time'],
+        ['state'],
+        ['state_time', 'relation', ['time', 'state']]
+    ],
+    'config': [
+        ['name', 'primary'],
+        ['value', 'index', 'ME']
+    ],
+    'exhibition': [
+        ['id', 'primary'],
+        ['zhName'],
+        ['enName'],
+        ['startTime'],
+        ['endTime']
+    ],
+    'audience':[
+        ['id', 'primary'],
+        ['code'],
+        ['status']
+    ],
+    'gate': [
+        ['id', 'primary'],
+        ['exId'],
+        ['gate_name'],
+        ['zhName'],
+        ['enName'],
+        ['create_at']
+    ],
+    'gate_device': [
+        ['uid', 'primary'],
+        ['name']
+    ]
+}).open(function(result) {
+    console.log(result);
+});
+
+</script>
+
+</body>
+</html>
