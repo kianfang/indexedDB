@@ -20,7 +20,7 @@ module.exports = function(grunt) {
             },
             app: {
                 files: {
-                    './dist/indexeddb.min.js': './src/indexedDB.js'
+                    './dist/indexeddb.min.js': './src/indexeddb.js'
                 }
                 // src: 'src/<%= pkg.name %>.js',
                 // dist: 'dist/<%= pkg.name %>.min.js'
