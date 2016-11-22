@@ -179,6 +179,42 @@
 
                 return this;
             },
+            findOne: function (query, resultData) {
+                this.on("success", resultData);
+                this.on("error", resultData);
+
+                var objectStore = this.getDatabase().transaction([this.name], 'readonly').objectStore(this.name);
+                var self = this;
+                objectStore.transaction.onerror = function(e) {
+                    self.emit("erro", {
+                        'error': -1,
+                        'message': 'findOne operation fail!',
+                        'data': e
+                    });
+                };
+
+                var result = function (e) {
+                    self.emit("success", {
+                        error: 0,
+                        message: 'find success!',
+                        data: {
+                            result: e.target.result
+                        }
+                    });
+                };
+
+                if (query[0] === objectStore.keyPath) {
+                    objectStore.get(query[1]).onsuccess = function(e) {
+                        result(e);
+                    };
+                } else {
+                    objectStore.index(query[0] + 'Index').get(query[1]).onsuccess = function(e) {
+                        result(e);
+                    };
+                }
+
+                return this;
+            },
             insert: function (doc, resultData) {
                 this.on("success", resultData);
                 this.on("error", resultData);
