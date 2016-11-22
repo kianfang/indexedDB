@@ -183,7 +183,7 @@
                 this.on("success", resultData);
                 this.on("error", resultData);
 
-                var objectStore = this.database.transaction([this.name], 'readwrite').objectStore(this.name);
+                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
                 objectStore.add(doc).onsuccess = function(e) {
                     resultData({
                         error: 0,
