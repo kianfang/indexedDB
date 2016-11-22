@@ -71,76 +71,118 @@
         return keyRangeValue;
     };
 
-    var isEmptyObject = function(obj){
-        var bool = true;
-        for(var i in obj) {
-            bool = false;
-            break;
-        }
-        return bool;
+    var isFunction = function (func) {
+        return typeof func === 'function';
     };
 
+    /**
+     * 判断是否对象/JSON 是否为空
+     * @param  {[type]}  obj [description]
+     * @return {Boolean}     [description]
+     */
+    var isEmptyObject = function(obj){
+        if(isFunction(obj)) {
+            throw 'this is Function';
+        }else{
+            var bool = true;
+            for(var i in obj) {
+                bool = false;
+                break;
+            }
+            return bool;
+        }
+
+    };
+
+    /**
+     * 构造集合类函数
+     * @param {[type]} Obj [description]
+     */
     var setCollection = function(Obj){
         var Collection = function(name){
-            DB.apply(this, arguments);
-            this.name = Obj.collectionName;
-            this.database = Obj.database;
+            // DB.apply(this, arguments);
+            DB.call(this, name);
             this.result = Obj.DB;
+            delete this.database;
+            delete this.version;
             delete this.initialCollections;
         };
 
         Collection.prototype = {
             constructor: Collection,
 
+            getDatabase: function(){
+                return this.result.database;
+            },
+
             /**
              * IndexedDB查询符合条件的所有数据
              * @method find
              * @for DB.table
-             * @param {Array} queryAll 查询语句 eg: ['id', ['eq', 2]]
+             * @param {Array} query 查询语句 eg: ['id', ['eq', 2]]
              * @param {Callback} resultData 回调返回数据
              * @return {Object} self/DB
              */
-            find: function(queryAll, resultData) {
-                if(typeof queryAll === 'function') {
-                    resultData = queryAll;
-                    queryAll = ['*'];
+            find: function(query, resultData) {
+                if(query === undefined) {
+                    query = ['*'];
                 }
 
-                var objectStore = this.database.transaction([this.name], 'readonly').objectStore(this.name),
-                    i = 0,
-                    data = [],
-                    keyRangeValue = queryAll[0] === '*' ? null : getKeyRangeValue(queryAll[1]),
-                    result = function(e, callback) {
-                        var cursor = e.target.result;
-                        if (cursor) {
-                            i++;
-                            data.push(cursor.value);
-                            cursor.continue();
-                        } else {
-                            callback({
-                                error: 0,
-                                message: 'select success of total ' + i,
-                                data: data,
+                if(isFunction(query)) {
+                    resultData = query;
+                    query = ['*'];
+                }
+                //注册事件
+                this.on("success", resultData);
+                this.on("error", resultData);
+
+                var objectStore = this.getDatabase().transaction([this.name], 'readonly').objectStore(this.name);
+                var i = 0;
+                var data = [];
+                var keyRangeValue = query[0] === '*' ? null : getKeyRangeValue(query[1]);
+                var self = this;
+                var result = function(e) {
+                    var cursor = e.target.result;
+                    if (cursor) {
+                        i++;
+                        data.push(cursor.value);
+                        cursor.continue();
+                    } else {
+                        self.emit("success", {
+                            error: 0,
+                            message: 'select success of total ' + i,
+                            data: {
+                                result: data,
                                 total: i,
-                                query: queryAll
-                            });
-                        }
-                    };
-                self.callback = resultData;
-                objectStore.transaction.onerror = onerror;
-                if (queryAll[0] === objectStore.keyPath || queryAll[0] === '*') {
-                    objectStore.openCursor(keyRangeValue, queryAll[2] === undefined ? 'prev' : queryAll[2]).onsuccess = function(e) {
-                        result(e, resultData);
+                                query: query
+                            }
+                        });
+                    }
+                };
+                objectStore.transaction.onerror = function(e) {
+                    self.emit("error", {
+                        error: 1010,
+                        message: 'find error',
+                        data: e
+                    });
+                };
+
+                if (query[0] === objectStore.keyPath || query[0] === '*') {
+                    objectStore.openCursor(keyRangeValue, query[2] === undefined ? 'prev' : query[2]).onsuccess = function(e) {
+                        result(e);
                     };
                 } else {
-                    objectStore.index(queryAll[0] + 'Index').openCursor(keyRangeValue, queryAll[2] === undefined ? 'prev' : queryAll[2]).onsuccess = function(e) {
-                        result(e, resultData);
+                    objectStore.index(query[0] + 'Index').openCursor(keyRangeValue, query[2] === undefined ? 'prev' : query[2]).onsuccess = function(e) {
+                        result(e);
                     };
                 }
 
                 return this;
             },
             insert: function (doc, resultData) {
+                this.on("success", resultData);
+                this.on("error", resultData);
+
                 var objectStore = this.database.transaction([this.name], 'readwrite').objectStore(this.name);
                 objectStore.add(doc).onsuccess = function(e) {
                     resultData({
@@ -152,11 +194,15 @@
                 return this;
             },
             batchInsert: function (arrayData, resultData) {
+                this.on("success", resultData);
+                this.on("error", resultData);
+
+                var self = this;
                 var count = 0;
-                var objectStore = this.database.transaction([this.name], 'readwrite').objectStore(this.name);
+                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
                 var total = (arrayData === null || arrayData === undefined) ? 0 : arrayData.length;
                 if(total === 0){
-                    resultData({
+                    self.emit('error', {
                         error: 1,
                         message: 'no data!'
                     });
@@ -164,7 +210,7 @@
                     /* jshint loopfunc:true */
                     for(var i=0; i<total; i++){
                         objectStore.add(arrayData[i]).onsuccess = function(e) {
-                            resultData({
+                            self.emit('success', {
                                 error: 0,
                                 message: 'save success!',
                                 data: {
@@ -178,7 +224,13 @@
                 return this;
             },
             update: function(doc, resultData) {
-                var objectStore = this.database.transaction([this.name], 'readwrite').objectStore(this.name);
+                this.on("success", resultData);
+                this.on("error", resultData);
+
+                if(doc === undefined || isEmptyObject(doc)) {
+                    throw 'no update data';
+                }
+                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
                 objectStore.put(doc).onsuccess = function(e) {
                     resultData({
                         error: 0,
@@ -189,26 +241,129 @@
             },
 
             /**
-             * indexedDB清空存储对象 - test ok
+             * indexedDB清空存储对象
              * @param  {Callback} resultData 回调返回数据
-             * @return {Object} self/DB
+             * @return {Object} Collection
              */
-            clear: function(resultData) {
-                var objectStore = this.database.transaction([this.name], 'readwrite').objectStore(this.name);
-                objectStore.clear().onsuccess = function(e) {
-                    resultData({
+            remove: function(query, resultData) {
+
+                if(typeof query === 'function' || isEmptyObject(query)) {
+                    resultData = query;
+                    query = ['*'];
+                }
+
+                this.on("success", resultData);
+                this.on("error", resultData);
+
+                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
+                var self = this;
+                if(query[0] === '*') {
+                    objectStore.clear().onsuccess = function(e) {
+                        self.emit("success", {
+                            error: 0,
+                            message: "clear success!"
+                        });
+                    };
+                }else{
+                    var keyRangeValue = getKeyRangeValue(query[1]);
+                    var i = 0;
+                    var result = function(e) {
+                        var cursor = e.target.result;
+                        if (cursor) {
+                            i++;
+                            window.console.log(cursor);
+                            cursor.delete();
+                            cursor.continue();
+                        } else {
+                            self.emit("success", {
+                                error: 0,
+                                message: 'delete success of total ' + i,
+                                data: {
+                                    total: i
+                                }
+                            });
+                        }
+                    };
+                    if (query[0] === objectStore.keyPath) {
+                        objectStore.openCursor(keyRangeValue).onsuccess = function(e) {
+                            window.console.log(keyRangeValue);
+                            result(e);
+                        };
+                    } else {
+                        objectStore.index(query[0] + 'Index').openCursor(keyRangeValue).onsuccess = function(e) {
+                            result(e);
+                        };
+                    }
+
+                }
+
+                return this;
+            },
+            /**
+             * 获取全部 总数/记录数
+             * @param  {[type]} resultData [description]
+             * @return {[type]}            [description]
+             */
+            count: function (resultData){
+                this.on("success", resultData);
+                this.on("error", resultData);
+
+                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
+
+                var self = this;
+                objectStore.transaction.onerror = function(e){
+                    self.emit('error', {
                         error: 0,
-                        message: "clear success!"
+                        message: 'action fail!',
+                        data: e
                     });
                 };
+                objectStore.count().onsuccess = function(e) {
+                    self.emit('success', {
+                        error: 0,
+                        message: "total " + e.target.result + ' !',
+                        data: {
+                            count: e.target.result
+                        }
+                    });
+                    console.log(e.target.result);
+                };
+                return this;
+            },
+            /**
+             * 刪除集合
+             * @param  {[type]} resultData [description]
+             * @return {[type]}            [description]
+             */
+            drop: function (resultData) {
+                this.on("success", resultData);
+                this.on("error", resultData);
 
-                return self;
+                var openDBRequest = this.result.updateVersion(this.getDatabase()); //更新版本
+                console.log(openDBRequest);
+
+                var self = this;
+                openDBRequest.onupgradeneeded = function(e) {
+                    self.result.database = e.target.result;
+                    self.getDatabase().deleteObjectStore(self.name); //value is undefined
+                    delete self.result[self.name];
+                    self.emit("success", {
+                        error: 0,
+                        message: self.name + ' removed and version update to ' + self.getDatabase().version + '!'
+                    });
+                };
+                return this;
             }
         }; // Collection
 
-        Obj.DB[Obj.collectionName] = new Collection(Obj.DB.name);
+        Obj.DB[Obj.collectionName] = new Collection(Obj.collectionName);
     };
 
+    /**
+     * 构造数据库类函数
+     * @param {[type]} name               [description]
+     * @param {[type]} initialCollections [description]
+     */
     var DB = function(name, initialCollections){
         "use strict"; // 使用严格模式
         this.name = name;
@@ -217,29 +372,52 @@
         }
         this.initialCollections = initialCollections ? initialCollections : {};
 
-        // this.useCollection = null;
+        this.database = null;
 
         this.type = 'indexedDB';
 
-        this.version = 0;
+        this.version = undefined;
 
-        this.onopen = null;
+        // this.onopen = null;
 
-        this.onerror = null;
+        // this.onerror = null;
+        //
+        // this.onsuccess = null;
+
+        this.emit = function (status, data) {
+            var callback = this['on' + status];
+            if(typeof callback === 'function') {
+                callback(data);
+            }
+        };
+
+        this.on = function (status, callback) {
+            if(typeof callback === 'function') {
+                this['on' + status] = callback;
+            }
+            return this;
+        };
 
     };
 
     DB.prototype = {
         constructor: DB,
-
+        /**
+         * 打开 indexedDB， 获取数据库 database
+         * @param  {[type]} resultData [description]
+         * @return {[type]}            [description]
+         */
         open: function(resultData) {
-            var self = this;
-            if (w.indexedDB === null) {
-                console.log("indexedDB don't support!");
-                return self;
-            } else {
-                var openDBRequest = w.indexedDB.open(self.name);
+            this.on('open', resultData);
+            this.on('success', resultData);
+            this.on('error', resultData);
+            this.on('open', resultData);
 
+            if (w.indexedDB === null) {
+                throw "indexedDB don't support!";
+            } else {
+                var openDBRequest = w.indexedDB.open(this.name, this.version);
+                var self = this;
                 // window.console.log(openDBRequest);
                 openDBRequest.onupgradeneeded = function(e){
                     for(var collectionName in self.initialCollections){
@@ -247,29 +425,55 @@
                     }
                 };
                 openDBRequest.onsuccess = function(e) {
+                    self.database = e.target.result;
+                    self.version = self.database.version;
+
                     for(var collectionName in self.initialCollections){
                         setCollection({
                             DB: self,
-                            collectionName: collectionName,
-                            database: e.target.result
+                            collectionName: collectionName
                         });
                     }
 
-                    resultData({
+                    self.emit("open", {
                         error: 0,
                         message: 'open success!',
                         result: self
                     });
                 };
+
+                openDBRequest.onerror = function(e) {
+                    self.emit("error", {
+                        error: 0,
+                        message: 'open database fail!',
+                        result: e
+                    });
+                };
             }
-            return self;
+            return this;
         },
 
+        updateVersion: function(database) {
+            database.close();
+            this.version++;
+            return w.indexedDB.open(this.name, this.version);
+        },
+
+        /**
+         * 获取集合
+         * @param  {[type]} collectionName [description]
+         * @return {[type]}                [description]
+         */
         getCollection: function (collectionName) {
             return this[collectionName];
         },
 
-        remove: function (dbName) {
+        /**
+         * 删除数据库
+         * @param  {[type]} dbName [description]
+         * @return {[type]}        [description]
+         */
+        drop: function (dbName) {
             w.indexedDB.deleteDatabase(dbName || this.name);
             return this;
         }
