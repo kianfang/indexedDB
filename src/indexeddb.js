@@ -219,9 +219,18 @@
                 this.on("success", resultData);
                 this.on("error", resultData);
 
-                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
-                objectStore.add(doc).onsuccess = function(e) {
-                    resultData({
+                var self = this;
+                var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).add(doc);
+                request.error = function (e) {
+                    self.emit('error', {
+                        error: -1,
+                        message: 'add fail!',
+                        data: e
+                    });
+                };
+
+                request.onsuccess = function (e) {
+                    self.emit('success', {
                         error: 0,
                         message: 'add success!',
                         index: e.target.result
@@ -266,9 +275,18 @@
                 if(doc === undefined || isEmptyObject(doc)) {
                     throw 'no update data';
                 }
-                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
-                objectStore.put(doc).onsuccess = function(e) {
-                    resultData({
+                var self = this;
+                var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).put(doc);
+
+                request.onsuccess = function (e){
+                    self.emet('error', {
+                        error: -1,
+                        message: 'update fail!'
+                    });
+                };
+
+                request.onsuccess = function(e) {
+                    self.emit('success', {
                         error: 0,
                         message: 'save success!'
                     });
