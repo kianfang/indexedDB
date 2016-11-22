@@ -378,12 +378,6 @@
 
         this.version = undefined;
 
-        // this.onopen = null;
-
-        // this.onerror = null;
-        //
-        // this.onsuccess = null;
-
         this.emit = function (status, data) {
             var callback = this['on' + status];
             if(typeof callback === 'function') {
@@ -438,7 +432,9 @@
                     self.emit("open", {
                         error: 0,
                         message: 'open success!',
-                        result: self
+                        data: {
+                            DB: self
+                        }
                     });
                 };
 
