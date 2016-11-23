@@ -95,6 +95,18 @@
     };
 
     /**
+     * 构造回调函数
+     */
+    var Callback = function (fn, eventName) {
+        this.name = eventName;
+        this.callback = fn;
+        this.emit = function(data) {
+            this.callback(data);
+        };
+        return this;
+    };
+
+    /**
      * 构造集合类函数
      * @param {[type]} Obj [description]
      */
@@ -133,8 +145,8 @@
                     query = ['*'];
                 }
                 //注册事件
-                this.on("success", resultData);
-                this.on("error", resultData);
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var objectStore = this.getDatabase().transaction([this.name], 'readonly').objectStore(this.name);
                 var i = 0;
@@ -148,7 +160,7 @@
                         data.push(cursor.value);
                         cursor.continue();
                     } else {
-                        self.emit("success", {
+                        success.emit({
                             error: 0,
                             message: 'select success of total ' + i,
                             data: {
@@ -160,7 +172,7 @@
                     }
                 };
                 objectStore.transaction.onerror = function(e) {
-                    self.emit("error", {
+                    error.emit({
                         error: 1010,
                         message: 'find error',
                         data: e
@@ -180,13 +192,14 @@
                 return this;
             },
             findOne: function (query, resultData) {
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var objectStore = this.getDatabase().transaction([this.name], 'readonly').objectStore(this.name);
                 var self = this;
                 objectStore.transaction.onerror = function(e) {
-                    self.emit("erro", {
+                    error.emit({
                         'error': -1,
                         'message': 'findOne operation fail!',
                         'data': e
@@ -194,7 +207,7 @@
                 };
 
                 var result = function (e) {
-                    self.emit("success", {
+                    success.emit({
                         error: 0,
                         message: 'find success!',
                         data: {
@@ -216,13 +229,14 @@
                 return this;
             },
             insert: function (doc, resultData) {
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var self = this;
                 var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).add(doc);
                 request.error = function (e) {
-                    self.emit('error', {
+                    error.emit({
                         error: -1,
                         message: 'add fail!',
                         data: e
@@ -230,7 +244,7 @@
                 };
 
                 request.onsuccess = function (e) {
-                    self.emit('success', {
+                    success.emit({
                         error: 0,
                         message: 'add success!',
                         index: e.target.result
@@ -239,23 +253,23 @@
                 return this;
             },
             batchInsert: function (arrayData, resultData) {
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var self = this;
                 var count = 0;
                 var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
                 var total = (arrayData === null || arrayData === undefined) ? 0 : arrayData.length;
                 if(total === 0){
-                    self.emit('error', {
-                        error: 1,
+                    error.emit({
+                        error: -1,
                         message: 'no data!'
                     });
                 }else{
-                    /* jshint loopfunc:true */
-                    for(var i=0; i<total; i++){
+                    var forFn = function () {
                         objectStore.add(arrayData[i]).onsuccess = function(e) {
-                            self.emit('success', {
+                            success.emit({
                                 error: 0,
                                 message: 'save success!',
                                 data: {
@@ -264,13 +278,17 @@
                                 }
                             });
                         };
+                    };
+                    for(var i=0; i<total; i++){
+                        forFn();
                     }
                 }
                 return this;
             },
             update: function(doc, resultData) {
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 if(doc === undefined || isEmptyObject(doc)) {
                     throw 'no update data';
@@ -279,14 +297,14 @@
                 var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).put(doc);
 
                 request.onsuccess = function (e){
-                    self.emet('error', {
+                    error.emet({
                         error: -1,
                         message: 'update fail!'
                     });
                 };
 
                 request.onsuccess = function(e) {
-                    self.emit('success', {
+                    success.emit({
                         error: 0,
                         message: 'save success!'
                     });
@@ -306,16 +324,25 @@
                     query = ['*'];
                 }
 
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
                 var self = this;
                 if(query[0] === '*') {
-                    objectStore.clear().onsuccess = function(e) {
-                        self.emit("success", {
+                    var request = objectStore.clear();
+                    request.onsuccess = function (e) {
+                        success.emit({
                             error: 0,
-                            message: "clear success!"
+                            message: "clear success!",
+                            data: e
+                        });
+                    };
+                    request.onerror = function (e) {
+                        error.emit({
+                            error: -1,
+                            message: "clear fail!"
                         });
                     };
                 }else{
@@ -329,7 +356,7 @@
                             cursor.delete();
                             cursor.continue();
                         } else {
-                            self.emit("success", {
+                            success.emit({
                                 error: 0,
                                 message: 'delete success of total ' + i,
                                 data: {
@@ -359,21 +386,22 @@
              * @return {[type]}            [description]
              */
             count: function (resultData){
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
 
                 var self = this;
                 objectStore.transaction.onerror = function(e){
-                    self.emit('error', {
+                    error.emit({
                         error: 0,
                         message: 'action fail!',
                         data: e
                     });
                 };
                 objectStore.count().onsuccess = function(e) {
-                    self.emit('success', {
+                    success.emit({
                         error: 0,
                         message: "total " + e.target.result + ' !',
                         data: {
@@ -390,8 +418,9 @@
              * @return {[type]}            [description]
              */
             drop: function (resultData) {
-                this.on("success", resultData);
-                this.on("error", resultData);
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
                 var openDBRequest = this.result.updateVersion(this.getDatabase()); //更新版本
                 console.log(openDBRequest);
@@ -401,7 +430,7 @@
                     self.result.database = e.target.result;
                     self.getDatabase().deleteObjectStore(self.name); //value is undefined
                     delete self.result[self.name];
-                    self.emit("success", {
+                    success.emit({
                         error: 0,
                         message: self.name + ' removed and version update to ' + self.getDatabase().version + '!'
                     });
@@ -432,16 +461,20 @@
 
         this.version = undefined;
 
-        this.emit = function (status, data) {
-            var callback = this['on' + status];
-            if(typeof callback === 'function') {
-                callback(data);
-            }
-        };
+        this.callfn = []; // 存储回调函数
 
-        this.on = function (status, callback) {
+        this.on = function (evtName, callback) {
             if(typeof callback === 'function') {
-                this['on' + status] = callback;
+                // if(typeof evt === 'string') {
+                //     evt = [evt];
+                // }
+                //
+                // if(evt instanceof Array) {
+                //     for(var i=0; i<evt.count; i++) {
+                //         this['on' + evt] = callback;
+                //     }
+                // }
+                return new Callback(callback, evtName);
             }
             return this;
         };
@@ -456,10 +489,9 @@
          * @return {[type]}            [description]
          */
         open: function(resultData) {
-            this.on('open', resultData);
-            this.on('success', resultData);
-            this.on('error', resultData);
-            this.on('open', resultData);
+            var open = this.on('open', resultData);
+            var success = this.on('success', resultData);
+            var error = this.on('error', resultData);
 
             if (w.indexedDB === null) {
                 throw "indexedDB don't support!";
@@ -483,7 +515,7 @@
                         });
                     }
 
-                    self.emit("open", {
+                    open.emit({
                         error: 0,
                         message: 'open success!',
                         data: {
@@ -493,7 +525,7 @@
                 };
 
                 openDBRequest.onerror = function(e) {
-                    self.emit("error", {
+                    error.emit({
                         error: 0,
                         message: 'open database fail!',
                         result: e
