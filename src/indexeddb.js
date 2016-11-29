@@ -440,6 +440,34 @@
                 return this;
             },
             /**
+             * 获取全部主键值
+             * @param  {Function} resultData 回调返回数据
+             * @return {[type]}            [description]
+             */
+            keys: function(resultData) {
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
+                var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).getAllKeys();
+                request.onsuccess = function(e) {
+                    success.emit({
+                        error: 0,
+                        message: "get success",
+                        data: {
+                            result: e.target.result
+                        }
+                    });
+                };
+
+                request.onerror = function(e) {
+                    error.emit({
+                        error: -1,
+                        message: "get fail",
+                        data: e
+                    });
+                };
+            },
+            /**
              * 刪除集合
              * @param  {[type]} resultData [description]
              * @return {[type]}            [description]
