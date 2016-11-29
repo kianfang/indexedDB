@@ -319,17 +319,21 @@
                 var self = this;
                 var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).put(doc);
 
-                request.onsuccess = function (e){
-                    error.emet({
+                request.onerror = function (e){
+                    error.emit({
                         error: -1,
-                        message: 'update fail!'
+                        message: 'save fail!',
+                        data: e
                     });
                 };
 
                 request.onsuccess = function(e) {
                     success.emit({
                         error: 0,
-                        message: 'save success!'
+                        message: 'save success!',
+                        data: {
+                            key: e.target.result
+                        }
                     });
                 };
                 return this;
