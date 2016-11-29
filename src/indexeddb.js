@@ -136,7 +136,7 @@
              * @return {Object} self/DB
              */
             find: function(query, resultData) {
-                if(query === undefined) {
+                if(query === undefined || query === null) {
                     query = ['*'];
                 }
 
@@ -153,40 +153,62 @@
                 var data = [];
                 var keyRangeValue = query[0] === '*' ? null : getKeyRangeValue(query[1]);
                 var self = this;
-                var result = function(e) {
-                    var cursor = e.target.result;
-                    if (cursor) {
-                        i++;
-                        data.push(cursor.value);
-                        cursor.continue();
-                    } else {
+
+                if(keyRangeValue === null) {
+                    var request = objectStore.getAll();
+                    request.onsuccess = function(e) {
                         success.emit({
                             error: 0,
-                            message: 'select success of total ' + i,
+                            message: 'find success',
                             data: {
-                                result: data,
-                                total: i,
-                                query: query
+                                result: e.target.result,
+                                total: e.target.result.length
                             }
                         });
-                    }
-                };
-                objectStore.transaction.onerror = function(e) {
-                    error.emit({
-                        error: 1010,
-                        message: 'find error',
-                        data: e
-                    });
-                };
+                    };
+                    request.onerror = function(e) {
+                        error.emit({
+                            error: 1010,
+                            message: 'find error',
+                            data: e
+                        });
+                    };
+                }else{
+                    var result = function(e) {
+                        var cursor = e.target.result;
+                        if (cursor) {
+                            i++;
+                            data.push(cursor.value);
+                            cursor.continue();
+                        } else {
+                            success.emit({
+                                error: 0,
+                                message: 'select success of total ' + i,
+                                data: {
+                                    result: data,
+                                    total: i,
+                                    query: query
+                                }
+                            });
+                        }
+                    };
+                    objectStore.transaction.onerror = function(e) {
+                        error.emit({
+                            error: 1010,
+                            message: 'find error',
+                            data: e
+                        });
+                    };
 
-                if (query[0] === objectStore.keyPath || query[0] === '*') {
-                    objectStore.openCursor(keyRangeValue, query[2] === undefined ? 'prev' : query[2]).onsuccess = function(e) {
-                        result(e);
-                    };
-                } else {
-                    objectStore.index(query[0] + 'Index').openCursor(keyRangeValue, query[2] === undefined ? 'prev' : query[2]).onsuccess = function(e) {
-                        result(e);
-                    };
+                    if (query[0] === objectStore.keyPath) {
+                        objectStore.openCursor(keyRangeValue, query[2] === undefined ? 'prev' : query[2]).onsuccess = function(e) {
+                            result(e);
+                        };
+                    } else {
+                        objectStore.index(query[0] + 'Index').openCursor(keyRangeValue, query[2] === undefined ? 'prev' : query[2]).onsuccess = function(e) {
+                            result(e);
+                        };
+                    }
                 }
 
                 return this;
