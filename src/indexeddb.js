@@ -280,52 +280,52 @@
              * @param  {[type]} resultData [description]
              * @return {[type]}            [description]
              */
-            batchInsert: function (arrayData, resultData) {
-                //注册事件
-                var success = this.on("success", resultData);
-                var error = this.on("error", resultData);
+             batchInsert: function (arrayData, resultData) {
+                 //注册事件
+                 var success = this.on("success", resultData);
+                 var error = this.on("error", resultData);
 
-                var self = this;
-                var count = 0;
-                var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
-                var total = (arrayData === null || arrayData === undefined) ? 0 : arrayData.length;
-                if(total === 0){
-                    error.emit({
-                        error: -1,
-                        message: 'no data!'
-                    });
-                }else{
-                    var forFn = function (index, keys) {
-                        if (keys.indexOf(arrayData[index][objectStore.keyPath]) === -1) {
-                            var request = objectStore.add(arrayData[index]);
-                            request.onsuccess = function(e) {
-                                success.emit({
-                                    error: 0,
-                                    message: 'insert success!',
-                                    data: {
-                                        total: total,
-                                        index: e.target.result
-                                    }
-                                });
-                            };
-                            request.onerror = function(e) {
-                                error.emit({
-                                    error: -1,
-                                    message: 'insert fail!',
-                                    data: e
-                                });
-                            };
-                        }
-                    }; // forFn
-                    this.keys(function(result) {
-                        var keys = result.data.result;
-                        for(var i=0; i<total; i++){
-                            forFn(i, keys);
-                        }
-                    });
-                }
-                return this;
-            },
+                 var self = this;
+                 var count = 0;
+                 var total = (arrayData === null || arrayData === undefined) ? 0 : arrayData.length;
+                 if(total === 0){
+                     error.emit({
+                         error: -1,
+                         message: 'no data!'
+                     });
+                 }else{
+                     var forFn = function (index, keys, objectStore) {
+                         if (keys.indexOf(arrayData[index][objectStore.keyPath]) === -1) {
+                             var request = objectStore.add(arrayData[index]);
+                             request.onsuccess = function(e) {
+                                 success.emit({
+                                     error: 0,
+                                     message: 'insert success!',
+                                     data: {
+                                         total: total,
+                                         index: e.target.result
+                                     }
+                                 });
+                             };
+                             request.onerror = function(e) {
+                                 error.emit({
+                                     error: -1,
+                                     message: 'insert fail!',
+                                     data: e
+                                 });
+                             };
+                         }
+                     }; // forFn
+                     this.keys(function(result) {
+                         var objectStore = self.getDatabase().transaction([self.name], 'readwrite').objectStore(self.name);
+                         var keys = result.data.result;
+                         for(var i=0; i<total; i++){
+                             forFn(i, keys, objectStore);
+                         }
+                     });
+                 }
+                 return this;
+             },
             /**
              * 数据更新-待增加
              * @param  {[type]} doc        [description]
