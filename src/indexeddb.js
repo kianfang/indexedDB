@@ -1,12 +1,12 @@
-(function(w, idbName){
+(function(w, idbName) {
     //indexedDB兼容处理
     w.indexedDB = w.indexedDB || w.webkitIndexedDB || w.mozIndexedDB || w.msIndexedDB;
     w.IDBTransaction = w.IDBTransaction || w.webkitIDBTransaction || w.msIDBTransaction;
     w.IDBKeyRange = w.IDBKeyRange || w.webkitIDBKeyRange || w.msIDBKeyRange;
     w.IDBCursor = w.IDBCursor || w.webkitIDBCursor || w.msIDBCursor;
 
-    var createCollection = function (database, collection, tableField) {
-        var index, request, data=[];
+    var createCollection = function(database, collection, tableField) {
+        var index, request, data = [];
         for (index in tableField) {
             // window.console.log(table);
             switch (tableField[index][1]) {
@@ -15,19 +15,19 @@
                         keyPath: tableField[index][0],
                         autoIncrement: tableField[index][2] === 'AI'
                     });
-                break;
+                    break;
                 case 'relation':
                     data.push([tableField[index][0] + 'Index', tableField[index][2], {
                         unique: false,
                         multiEntry: false
                     }]);
-                break;
+                    break;
                 default:
                     data.push([tableField[index][0] + 'Index', tableField[index][0], {
                         unique: tableField[index][1] === 'unique',
                         multiEntry: tableField[index][2] === 'ME'
                     }]);
-                break;
+                    break;
             }
 
         }
@@ -71,7 +71,7 @@
         return keyRangeValue;
     };
 
-    var isFunction = function (func) {
+    var isFunction = function(func) {
         return typeof func === 'function';
     };
 
@@ -80,12 +80,12 @@
      * @param  {[type]}  obj [description]
      * @return {Boolean}     [description]
      */
-    var isEmptyObject = function(obj){
-        if(isFunction(obj)) {
+    var isEmptyObject = function(obj) {
+        if (isFunction(obj)) {
             throw 'this is Function';
-        }else{
+        } else {
             var bool = true;
-            for(var i in obj) {
+            for (var i in obj) {
                 bool = false;
                 break;
             }
@@ -97,7 +97,7 @@
     /**
      * 构造回调函数
      */
-    var Callback = function (fn, eventName) {
+    var Callback = function(fn, eventName) {
         this.name = eventName;
         this.callback = fn;
         this.emit = function(data) {
@@ -110,8 +110,8 @@
      * 构造集合类函数
      * @param {[type]} Obj [description]
      */
-    var setCollection = function(Obj){
-        var Collection = function(name){
+    var setCollection = function(Obj) {
+        var Collection = function(name) {
             // DB.apply(this, arguments);
             DB.call(this, name);
             this.result = Obj.DB;
@@ -123,7 +123,7 @@
         Collection.prototype = {
             constructor: Collection,
 
-            getDatabase: function(){
+            getDatabase: function() {
                 return this.result.database;
             },
 
@@ -136,11 +136,11 @@
              * @return {Object} self/DB
              */
             find: function(query, resultData) {
-                if(query === undefined || query === null) {
+                if (query === undefined || query === null) {
                     query = ['*'];
                 }
 
-                if(isFunction(query)) {
+                if (isFunction(query)) {
                     resultData = query;
                     query = ['*'];
                 }
@@ -154,7 +154,7 @@
                 var keyRangeValue = query[0] === '*' ? null : getKeyRangeValue(query[1]);
                 var self = this;
 
-                if(keyRangeValue === null) {
+                if (keyRangeValue === null) {
                     var request = objectStore.getAll();
                     request.onsuccess = function(e) {
                         success.emit({
@@ -173,7 +173,7 @@
                             data: e
                         });
                     };
-                }else{
+                } else {
                     var result = function(e) {
                         var cursor = e.target.result;
                         if (cursor) {
@@ -213,7 +213,7 @@
 
                 return this;
             },
-            findOne: function (query, resultData) {
+            findOne: function(query, resultData) {
                 //注册事件
                 var success = this.on("success", resultData);
                 var error = this.on("error", resultData);
@@ -228,7 +228,7 @@
                     });
                 };
 
-                var result = function (e) {
+                var result = function(e) {
                     success.emit({
                         error: 0,
                         message: 'find success!',
@@ -250,14 +250,14 @@
 
                 return this;
             },
-            insert: function (doc, resultData) {
+            insert: function(doc, resultData) {
                 //注册事件
                 var success = this.on("success", resultData);
                 var error = this.on("error", resultData);
 
                 var self = this;
                 var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).add(doc);
-                request.error = function (e) {
+                request.error = function(e) {
                     error.emit({
                         error: -1,
                         message: 'add fail!',
@@ -265,7 +265,7 @@
                     });
                 };
 
-                request.onsuccess = function (e) {
+                request.onsuccess = function(e) {
                     success.emit({
                         error: 0,
                         message: 'add success!',
@@ -280,52 +280,57 @@
              * @param  {[type]} resultData [description]
              * @return {[type]}            [description]
              */
-             batchInsert: function (arrayData, resultData) {
-                 //注册事件
-                 var success = this.on("success", resultData);
-                 var error = this.on("error", resultData);
+            batchInsert: function(arrayData, resultData) {
+                //注册事件
+                var success = this.on("success", resultData);
+                var error = this.on("error", resultData);
 
-                 var self = this;
-                 var count = 0;
-                 var total = (arrayData === null || arrayData === undefined) ? 0 : arrayData.length;
-                 if(total === 0){
-                     error.emit({
-                         error: -1,
-                         message: 'no data!'
-                     });
-                 }else{
-                     var forFn = function (index, keys, objectStore) {
-                         if (keys.indexOf(arrayData[index][objectStore.keyPath]) === -1) {
-                             var request = objectStore.add(arrayData[index]);
-                             request.onsuccess = function(e) {
-                                 success.emit({
-                                     error: 0,
-                                     message: 'insert success!',
-                                     data: {
-                                         total: total,
-                                         index: e.target.result
-                                     }
-                                 });
-                             };
-                             request.onerror = function(e) {
-                                 error.emit({
-                                     error: -1,
-                                     message: 'insert fail!',
-                                     data: e
-                                 });
-                             };
-                         }
-                     }; // forFn
-                     this.keys(function(result) {
-                         var objectStore = self.getDatabase().transaction([self.name], 'readwrite').objectStore(self.name);
-                         var keys = result.data.result;
-                         for(var i=0; i<total; i++){
-                             forFn(i, keys, objectStore);
-                         }
-                     });
-                 }
-                 return this;
-             },
+                var self = this;
+                var count = 0;
+                var total = (arrayData === null || arrayData === undefined) ? 0 : arrayData.length;
+                if (total === 0) {
+                    error.emit({
+                        error: -1,
+                        message: 'no data!'
+                    });
+                } else {
+                    var forFn = function(index, keys, objectStore) {
+                        if (keys.indexOf(arrayData[index][objectStore.keyPath]) === -1) {
+                            var request = objectStore.add(arrayData[index]);
+                            request.onsuccess = function(e) {
+                                success.emit({
+                                    error: 0,
+                                    message: 'insert success!',
+                                    data: {
+                                        total: total,
+                                        index: e.target.result
+                                    }
+                                });
+                            };
+                            request.onerror = function(e) {
+                                error.emit({
+                                    error: -1,
+                                    message: 'insert fail!',
+                                    data: e
+                                });
+                            };
+                        } else {
+                            error.emit({
+                                error: -1,
+                                message: 'primary already exists'
+                            });
+                        }
+                    }; // forFn
+                    this.keys(function(result) {
+                        var objectStore = self.getDatabase().transaction([self.name], 'readwrite').objectStore(self.name);
+                        var keys = result.data.result;
+                        for (var i = 0; i < total; i++) {
+                            forFn(i, keys, objectStore);
+                        }
+                    });
+                }
+                return this;
+            },
             /**
              * 数据更新-待增加
              * @param  {[type]} doc        [description]
@@ -346,13 +351,13 @@
                 var success = this.on("success", resultData);
                 var error = this.on("error", resultData);
 
-                if(doc === undefined || isEmptyObject(doc)) {
+                if (doc === undefined || isEmptyObject(doc)) {
                     throw 'no update data';
                 }
                 var self = this;
                 var request = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name).put(doc);
 
-                request.onerror = function (e){
+                request.onerror = function(e) {
                     error.emit({
                         error: -1,
                         message: 'save fail!',
@@ -379,7 +384,7 @@
              */
             remove: function(query, resultData) {
 
-                if(typeof query === 'function' || isEmptyObject(query)) {
+                if (typeof query === 'function' || isEmptyObject(query)) {
                     resultData = query;
                     query = ['*'];
                 }
@@ -390,22 +395,22 @@
 
                 var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
                 var self = this;
-                if(query[0] === '*') {
+                if (query[0] === '*') {
                     var request = objectStore.clear();
-                    request.onsuccess = function (e) {
+                    request.onsuccess = function(e) {
                         success.emit({
                             error: 0,
                             message: "clear success!",
                             data: e
                         });
                     };
-                    request.onerror = function (e) {
+                    request.onerror = function(e) {
                         error.emit({
                             error: -1,
                             message: "clear fail!"
                         });
                     };
-                }else{
+                } else {
                     var keyRangeValue = getKeyRangeValue(query[1]);
                     var i = 0;
                     var result = function(e) {
@@ -445,7 +450,7 @@
              * @param  {[type]} resultData [description]
              * @return {[type]}            [description]
              */
-            count: function (resultData){
+            count: function(resultData) {
                 //注册事件
                 var success = this.on("success", resultData);
                 var error = this.on("error", resultData);
@@ -453,7 +458,7 @@
                 var objectStore = this.getDatabase().transaction([this.name], 'readwrite').objectStore(this.name);
 
                 var self = this;
-                objectStore.transaction.onerror = function(e){
+                objectStore.transaction.onerror = function(e) {
                     error.emit({
                         error: 0,
                         message: 'action fail!',
@@ -505,7 +510,7 @@
              * @param  {[type]} resultData [description]
              * @return {[type]}            [description]
              */
-            drop: function (resultData) {
+            drop: function(resultData) {
                 //注册事件
                 var success = this.on("success", resultData);
                 var error = this.on("error", resultData);
@@ -535,10 +540,10 @@
      * @param {[type]} name               [description]
      * @param {[type]} initialCollections [description]
      */
-    var DB = function(name, initialCollections){
+    var DB = function(name, initialCollections) {
         "use strict"; // 使用严格模式
         this.name = name;
-        if(this.name === undefined){
+        if (this.name === undefined) {
             throw 'name is empty!';
         }
         this.initialCollections = initialCollections ? initialCollections : {};
@@ -551,8 +556,8 @@
 
         this.callfn = []; // 存储回调函数
 
-        this.on = function (evtName, callback) {
-            if(typeof callback === 'function') {
+        this.on = function(evtName, callback) {
+            if (typeof callback === 'function') {
                 // if(typeof evt === 'string') {
                 //     evt = [evt];
                 // }
@@ -587,8 +592,8 @@
                 var openDBRequest = w.indexedDB.open(this.name, this.version);
                 var self = this;
                 // window.console.log(openDBRequest);
-                openDBRequest.onupgradeneeded = function(e){
-                    for(var collectionName in self.initialCollections){
+                openDBRequest.onupgradeneeded = function(e) {
+                    for (var collectionName in self.initialCollections) {
                         createCollection(e.target.result, collectionName, self.initialCollections[collectionName]);
                     }
                 };
@@ -596,7 +601,7 @@
                     self.database = e.target.result;
                     self.version = self.database.version;
 
-                    for(var collectionName in self.initialCollections){
+                    for (var collectionName in self.initialCollections) {
                         setCollection({
                             DB: self,
                             collectionName: collectionName
@@ -634,7 +639,7 @@
          * @param  {[type]} collectionName [description]
          * @return {[type]}                [description]
          */
-        getCollection: function (collectionName) {
+        getCollection: function(collectionName) {
             return this[collectionName];
         },
 
@@ -643,7 +648,7 @@
          * @param  {[type]} dbName [description]
          * @return {[type]}        [description]
          */
-        drop: function (dbName) {
+        drop: function(dbName) {
             w.indexedDB.deleteDatabase(dbName || this.name);
             return this;
         }
