@@ -274,6 +274,12 @@
                 };
                 return this;
             },
+            /**
+             * 批量插入数据
+             * @param  {[type]} arrayData  [description]
+             * @param  {[type]} resultData [description]
+             * @return {[type]}            [description]
+             */
             batchInsert: function (arrayData, resultData) {
                 //注册事件
                 var success = this.on("success", resultData);
@@ -289,29 +295,34 @@
                         message: 'no data!'
                     });
                 }else{
-                    var forFn = function () {
-                        var request = objectStore.add(arrayData[i]);
-                        request.onsuccess = function(e) {
-                            success.emit({
-                                error: 0,
-                                message: 'insert success!',
-                                data: {
-                                    total: total,
-                                    index: e.target.result
-                                }
-                            });
-                        };
-                        request.onerror = function(e) {
-                            error.emit({
-                                error: -1,
-                                message: 'insert fail!',
-                                data: e
-                            });
-                        };
-                    };
-                    for(var i=0; i<total; i++){
-                        forFn();
-                    }
+                    var forFn = function (index, keys) {
+                        if (keys.indexOf(arrayData[index][objectStore.keyPath]) === -1) {
+                            var request = objectStore.add(arrayData[index]);
+                            request.onsuccess = function(e) {
+                                success.emit({
+                                    error: 0,
+                                    message: 'insert success!',
+                                    data: {
+                                        total: total,
+                                        index: e.target.result
+                                    }
+                                });
+                            };
+                            request.onerror = function(e) {
+                                error.emit({
+                                    error: -1,
+                                    message: 'insert fail!',
+                                    data: e
+                                });
+                            };
+                        }
+                    }; // forFn
+                    this.keys(function(result) {
+                        var keys = result.data.result;
+                        for(var i=0; i<total; i++){
+                            forFn(i, keys);
+                        }
+                    });
                 }
                 return this;
             },
