@@ -268,14 +268,22 @@
                     });
                 }else{
                     var forFn = function () {
-                        objectStore.add(arrayData[i]).onsuccess = function(e) {
+                        var request = objectStore.add(arrayData[i]);
+                        request.onsuccess = function(e) {
                             success.emit({
                                 error: 0,
-                                message: 'save success!',
+                                message: 'insert success!',
                                 data: {
                                     total: total,
                                     index: e.target.result
                                 }
+                            });
+                        };
+                        request.onerror = function(e) {
+                            error.emit({
+                                error: -1,
+                                message: 'insert fail!',
+                                data: e
                             });
                         };
                     };
