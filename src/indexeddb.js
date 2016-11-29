@@ -285,7 +285,22 @@
                 }
                 return this;
             },
+            /**
+             * 数据更新-待增加
+             * @param  {[type]} doc        [description]
+             * @param  {[type]} resultData [description]
+             * @return {[type]}            [description]
+             */
             update: function(doc, resultData) {
+                console.log('待增加！');
+            },
+            /**
+             * 数据保存
+             * @param  {[type]} doc        [description]
+             * @param  {[type]} resultData [description]
+             * @return {[type]}            [description]
+             */
+            save: function(doc, resultData) {
                 //注册事件
                 var success = this.on("success", resultData);
                 var error = this.on("error", resultData);
