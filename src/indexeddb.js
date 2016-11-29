@@ -332,7 +332,7 @@
                         error: 0,
                         message: 'save success!',
                         data: {
-                            key: e.target.result
+                            index: e.target.result
                         }
                     });
                 };
