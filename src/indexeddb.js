@@ -653,7 +653,12 @@
                 callfn = dbName;
                 dbName = this.name;
             }
-            w.indexedDB.deleteDatabase(dbName || this.name);
+            var request = w.indexedDB.deleteDatabase(dbName || this.name);
+            callfn({
+                error: 0,
+                message: 'delete database success',
+                data: request
+            });
             return this;
         }
 
