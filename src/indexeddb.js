@@ -648,7 +648,11 @@
          * @param  {[type]} dbName [description]
          * @return {[type]}        [description]
          */
-        drop: function(dbName) {
+        drop: function(dbName, callfn) {
+            if(typeof dbName === 'function') {
+                callfn = dbName;
+                dbName = this.name;
+            }
             w.indexedDB.deleteDatabase(dbName || this.name);
             return this;
         }
